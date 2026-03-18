@@ -1,0 +1,209 @@
+:root {
+    --bg-color: #0f172a;
+    --panel-bg: #1e293b;
+    --text-color: #f8fafc;
+    --text-muted: #94a3b8;
+    --grid-bg: #334155;
+    --cell-bg: #cbd5e1;
+    --cell-border: #94a3b8;
+    --start-bg: #22c55e;
+    --end-bg: #ef4444;
+    --block-bg: #475569;
+    --hover-bg: #e2e8f0;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+}
+
+body {
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.app-container {
+    background-color: var(--panel-bg);
+    padding: 2rem;
+    border-radius: 1rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    max-width: 600px;
+    width: 100%;
+}
+
+header h1 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.8rem;
+    color: var(--text-color);
+}
+
+header p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+}
+
+.controls-panel {
+    display: flex;
+    justify-content: space-between;
+    align-items: stretch;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 1rem;
+    border-radius: 0.5rem;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.mode-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.mode-selector h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1rem;
+    color: var(--text-color);
+}
+
+.mode-selector label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    transition: color 0.2s;
+}
+
+.mode-selector label:hover {
+    color: var(--text-color);
+}
+
+.action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.primary-btn {
+    background-color: var(--accent);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    font-size: 1rem;
+}
+
+.primary-btn:hover {
+    background-color: var(--accent-hover);
+}
+
+.primary-btn:active {
+    transform: scale(0.98);
+}
+
+.view-selector {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.view-selector select {
+    background-color: var(--grid-bg);
+    color: var(--text-color);
+    border: 1px solid var(--block-bg);
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    font-family: inherit;
+}
+
+.grid-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 1rem;
+}
+
+.grid-5x5 {
+    display: grid;
+    grid-template-columns: repeat(5, 70px);
+    grid-template-rows: repeat(5, 70px);
+    gap: 4px;
+    background-color: var(--grid-bg);
+    padding: 6px;
+    border-radius: 0.5rem;
+}
+
+.cell {
+    background-color: var(--cell-bg);
+    border-radius: 0.25rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: 600;
+    color: #1e293b;
+    font-size: 1.5rem;
+    position: relative;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+.cell:hover {
+    filter: brightness(0.9);
+}
+
+.cell.start {
+    background-color: var(--start-bg);
+    color: white;
+}
+
+.cell.end {
+    background-color: var(--end-bg);
+    color: white;
+}
+
+.cell.block {
+    background-color: var(--block-bg);
+    cursor: not-allowed;
+}
+
+.cell .overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    pointer-events: none;
+    font-size: 2rem;
+    color: #0f172a;
+}
+
+.cell.start .overlay, .cell.end .overlay {
+    display: flex; /* Need to override if we want to show arrows on start but maybe we dont */
+}
+
+/* Allow values to be displayed safely */
+.cell .overlay.value-mode {
+    font-size: 1rem; /* Smaller font for numbers */
+}
+
+/* Start and goal text overlays */
+.cell.start {
+    color: white;
+    font-size: 1.2rem;
+}
+
+.cell.end {
+    color: white;
+    font-size: 1.2rem;
+}
