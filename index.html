@@ -17,11 +17,11 @@
         
         <div class="controls-panel">
             <div class="mode-selector">
-                <h3>Edit Mode</h3>
-                <label><input type="radio" name="mode" value="start" checked> Set Start</label>
-                <label><input type="radio" name="mode" value="end"> Set End</label>
-                <label><input type="radio" name="mode" value="block"> Set Block</label>
-                <label><input type="radio" name="mode" value="clear"> Clear Cell</label>
+                <h3>Instructions</h3>
+                <p id="instruction-text" style="color: var(--text-color); font-size: 0.9rem; margin: 0; min-height: 2em;">
+                    Click a cell to set the <strong>Start</strong> point.
+                </p>
+                <button id="reset-btn" class="secondary-btn" style="margin-top: 10px;">Reset Grid</button>
             </div>
             
             <div class="action-buttons">

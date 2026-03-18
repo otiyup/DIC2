@@ -1,13 +1,17 @@
 document.addEventListener("DOMContentLoaded", () => {
     const gridEl = document.getElementById("grid");
-    const modeRadios = document.querySelectorAll('input[name="mode"]');
     const runBtn = document.getElementById("run-btn");
     const viewModeSelect = document.getElementById("view-mode");
+    const resetBtn = document.getElementById("reset-btn");
+    const instructionText = document.getElementById("instruction-text");
 
     const SIZE = 5;
-    let start = [0, 0];
-    let end = [4, 4];
-    let blocks = [[1, 1], [2, 2], [3, 3]];
+    let start = null;  // [r, c]
+    let end = null;    // [r, c]
+    let blocks = [];
+    
+    // 0: Set Start, 1: Set End, 2: Set Blocks
+    let clickState = 0; 
     
     let currentValues = [];
     let currentPolicy = [];
@@ -46,25 +50,26 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function handleCellClick(r, c) {
-        let mode = "start";
-        modeRadios.forEach(radio => {
-            if (radio.checked) mode = radio.value;
-        });
-
-        const isStart = start[0] === r && start[1] === c;
-        const isEnd = end[0] === r && end[1] === c;
-        const blockIndex = blocks.findIndex(b => b[0] === r && b[1] === c);
-
-        if (mode === "start") {
-            if (!isEnd && blockIndex === -1) start = [r, c];
-        } else if (mode === "end") {
-            if (!isStart && blockIndex === -1) end = [r, c];
-        } else if (mode === "block") {
-            if (!isStart && !isEnd && blockIndex === -1) {
-                blocks.push([r, c]);
+        if (clickState === 0) {
+            start = [r, c];
+            clickState = 1;
+            instructionText.innerHTML = "Click a cell to set the <strong>End</strong> point.";
+        } else if (clickState === 1) {
+            // Cannot be the same as start
+            if (start && start[0] === r && start[1] === c) return;
+            end = [r, c];
+            clickState = 2;
+            instructionText.innerHTML = "Click cells to toggle <strong>Obstacles</strong>.<br>When ready, click <em>Compute Value Iteration</em>.";
+        } else if (clickState === 2) {
+            // Cannot place block on start or end
+            if ((start && start[0] === r && start[1] === c) || 
+                (end && end[0] === r && end[1] === c)) {
+                return;
             }
-        } else if (mode === "clear") {
-            if (blockIndex !== -1) {
+            const blockIndex = blocks.findIndex(b => b[0] === r && b[1] === c);
+            if (blockIndex === -1) {
+                blocks.push([r, c]);
+            } else {
                 blocks.splice(blockIndex, 1);
             }
         }
@@ -76,6 +81,20 @@ document.addEventListener("DOMContentLoaded", () => {
         updateGridUI();
         renderOverlay();
     }
+    
+    function resetGrid() {
+        start = null;
+        end = null;
+        blocks = [];
+        clickState = 0;
+        currentValues = [];
+        currentPolicy = [];
+        instructionText.innerHTML = "Click a cell to set the <strong>Start</strong> point.";
+        updateGridUI();
+        renderOverlay();
+    }
+    
+    if(resetBtn) resetBtn.addEventListener("click", resetGrid);
 
     function updateGridUI() {
         for (let r = 0; r < SIZE; r++) {
@@ -85,11 +104,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 const textContainer = cell.querySelector('.cell-text');
                 textContainer.innerHTML = '';
                 
-                if (start[0] === r && start[1] === c) {
+                if (start && start[0] === r && start[1] === c) {
                     cell.classList.add("start");
                     textContainer.textContent = "S";
                     cell.title = "Start Cell";
-                } else if (end[0] === r && end[1] === c) {
+                } else if (end && end[0] === r && end[1] === c) {
                     cell.classList.add("end");
                     textContainer.textContent = "E";
                     cell.title = "Target Cell";
@@ -117,6 +136,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function runValueIterationLogic() {
+        if (!start || !end) {
+            throw new Error("Must set both start and end points.");
+        }
         let V = Array(SIZE).fill().map(() => Array(SIZE).fill(0.0));
         let policy = Array(SIZE).fill().map(() => Array(SIZE).fill(-1));
         
@@ -168,6 +190,10 @@ document.addEventListener("DOMContentLoaded", () => {
         // Use setTimeout to allow UI to update to "Computing..."
         setTimeout(() => {
             try {
+                if (!start || !end) {
+                    alert("Please set a Start point and an End point first.");
+                    return;
+                }
                 const result = runValueIterationLogic();
                 currentValues = result.values;
                 currentPolicy = result.policy;
@@ -178,14 +204,52 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 
                 renderOverlay();
+                renderPath();
             } catch (err) {
                 console.error(err);
-                alert("Error running Value Iteration");
+                alert("Error running Value Iteration: " + err.message);
             } finally {
                 runBtn.disabled = false;
                 runBtn.textContent = "Compute Value Iteration";
             }
         }, 10);
+    }
+
+    function renderPath() {
+        // Only render path if we have a policy and start/end are set and view is optimal
+        if (currentPolicy.length === 0 || !start || !end || viewModeSelect.value !== "optimal") return;
+        
+        let path = [];
+        let currR = start[0];
+        let currC = start[1];
+        let steps = 0;
+        const maxSteps = SIZE * SIZE; // prevent infinite loops in bad layouts
+        
+        while ((currR !== end[0] || currC !== end[1]) && steps < maxSteps) {
+            path.push([currR, currC]);
+            const action = currentPolicy[currR][currC];
+            if (action === -1) break; // no path
+            
+            const nextState = getTransition(currR, currC, action);
+            if (nextState[0] === currR && nextState[1] === currC) break; // bumped into wall
+            
+            currR = nextState[0];
+            currC = nextState[1];
+            steps++;
+            
+            if (currR === end[0] && currC === end[1]) {
+                path.push([currR, currC]);
+                break;
+            }
+        }
+        
+        // Apply path styling to elements
+        if (steps < maxSteps && path.length > 0 && path[path.length -1][0] === end[0] && path[path.length-1][1] === end[1]) {
+             path.forEach(([pr, pc]) => {
+                const cell = document.querySelector(`.cell[data-r="${pr}"][data-c="${pc}"]`);
+                if(cell) cell.classList.add('path');
+             });
+        }
     }
 
     function renderOverlay() {
@@ -200,9 +264,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 overlay.textContent = '';
                 overlay.className = "overlay"; // reset
                 
-                const isGoal = (r === end[0] && c === end[1]);
+                const isGoal = (end && r === end[0] && c === end[1]);
                 const isBlock = blocks.some(b => b[0] === r && b[1] === c);
-                const isStart = (r === start[0] && c === start[1]);
+                const isStart = (start && r === start[0] && c === start[1]);
                 
                 if (isGoal) {
                     if (viewMode === "values" && currentValues.length) {
@@ -259,7 +323,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     runBtn.addEventListener("click", runValueIteration);
-    viewModeSelect.addEventListener("change", renderOverlay);
+    viewModeSelect.addEventListener("change", () => {
+        updateGridUI(); // reset any path classes
+        renderOverlay();
+        renderPath();
+    });
 
     initGrid();
 });
