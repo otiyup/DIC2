@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HW1-1 網格地圖開發 - 最佳路徑顯示</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        h1 {
+            font-size: 24px;
+        }
+
+        .form-container {
+            margin-bottom: 20px;
+        }
+
+        .grid-container {
+            margin-top: 20px;
+        }
+
+        table {
+            border-collapse: collapse;
+        }
+
+        td {
+            width: 40px;
+            height: 40px;
+            border: 1px solid black;
+            text-align: center;
+            vertical-align: middle;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .default {
+            background-color: transparent;
+        }
+
+        .start {
+            background-color: #28a745;
+            /* Green */
+            color: black;
+        }
+
+        .end {
+            background-color: #dc3545;
+            /* Red */
+            color: black;
+        }
+
+        .obstacle {
+            background-color: #6c757d;
+            /* Gray */
+            color: black;
+        }
+        
+        .path {
+            background-color: #85e085;
+            /* Light Green for Path */
+        }
+
+        .instructions {
+            margin-bottom: 20px;
+        }
+
+        .matrices-container {
+            display: flex;
+            gap: 40px;
+            justify-content: flex-start;
+        }
+
+        .matrix-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .matrix-wrapper h4 {
+            margin-bottom: 10px;
+        }
+
+        .controls {
+            margin-top: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .controls input {
+            width: 60px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>HW1-1 網格地圖開發 60% (新增最佳路徑)</h1>
+    <ul>
+        <li>網格地圖功能完整性 30%</li>
+        <li>使用者界面友好性 15%</li>
+        <li>程式碼結構與可讀性 10%</li>
+        <li>網頁操作流暢度 5%</li>
+    </ul>
+
+    <h2>Generate n x n Square</h2>
+
+    <div class="form-container">
+        <label for="gridSize">Enter a number between 5 and 9:</label>
+        <input type="number" id="gridSize" min="5" max="9" value="5">
+        <button onclick="generateGrid()">Generate Square</button>
+    </div>
+
+    <div id="gridWrapper" style="display: none;">
+        <h3 id="gridTitle"></h3>
+        <p class="instructions">1. Click on a cell to set up the start grid as green or the end grid as red.<br>
+            2. After setting up, you can run Value Iteration to find the optimal policy and draw the path.</p>
+
+        <div class="controls">
+            <button onclick="runValueIteration()"
+                style="background-color: #007bff; color: white; border: none; padding: 5px 10px; cursor: pointer;">Run
+                Value Iteration</button>
+        </div>
+
+        <div class="matrices-container">
+            <div class="matrix-wrapper">
+                <h4>Value Matrix</h4>
+                <div class="grid-container" id="valueMatrixContainer"></div>
+            </div>
+            <div class="matrix-wrapper">
+                <h4>Policy Matrix</h4>
+                <div class="grid-container" id="policyMatrixContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSize = 0;
+        let startSet = false;
+        let endSet = false;
+        let hasEvaluated = false;
+
+        // states are 0 to size*size - 1
+        let gridStates = []; // each element: { type: 'default'|'start'|'end'|'obstacle', value: 0, policy: '', isPath: false }
+
+        function generateGrid() {
+            const sizeInput = document.getElementById('gridSize');
+            let size = parseInt(sizeInput.value);
+
+            if (isNaN(size) || size < 5 || size > 9) {
+                alert("Please enter a number between 5 and 9.");
+                return;
+            }
+
+            currentSize = size;
+            startSet = false;
+            endSet = false;
+            hasEvaluated = false;
+            gridStates = [];
+
+            for (let i = 0; i < size * size; i++) {
+                gridStates.push({ type: 'default', value: 0, policy: '', isPath: false });
+            }
+
+            const gridTitle = document.getElementById('gridTitle');
+            gridTitle.innerText = `${size} x ${size} Square:`;
+
+            const wrapper = document.getElementById('gridWrapper');
+            wrapper.style.display = 'block';
+
+            renderGrids();
+        }
+
+        function renderGrids() {
+            const valueContainer = document.getElementById('valueMatrixContainer');
+            const policyContainer = document.getElementById('policyMatrixContainer');
+            valueContainer.innerHTML = '';
+            policyContainer.innerHTML = '';
+
+            valueContainer.appendChild(createTable('value'));
+            policyContainer.appendChild(createTable('policy'));
+        }
+
+        function createTable(matrixType) {
+            const table = document.createElement('table');
+            let counter = 0;
+
+            for (let i = 0; i < currentSize; i++) {
+                const tr = document.createElement('tr');
+                for (let j = 0; j < currentSize; j++) {
+                    const td = document.createElement('td');
+                    const stateIndex = counter++;
+                    const state = gridStates[stateIndex];
+
+                    td.className = state.type;
+                    
+                    if (matrixType === 'policy' && state.isPath && state.type === 'default') {
+                        td.classList.add('path');
+                    }
+
+                    // Display text based on matrix type
+                    if (matrixType === 'value') {
+                        if (state.type === 'obstacle') {
+                            td.innerText = '';
+                        } else if (hasEvaluated) {
+                            td.innerText = state.type === 'end' ? '0.00' : state.value.toFixed(2);
+                        } else {
+                            td.innerText = stateIndex + 1;
+                        }
+                    } else if (matrixType === 'policy') {
+                        if (state.type === 'obstacle' || state.type === 'end') {
+                            td.innerText = '';
+                        } else if (hasEvaluated) {
+                            td.innerText = state.policy;
+                        } else {
+                            td.innerText = stateIndex + 1;
+                        }
+                    }
+
+                    td.onclick = function () {
+                        handleCellClick(stateIndex);
+                    };
+                    tr.appendChild(td);
+                }
+                table.appendChild(tr);
+            }
+            return table;
+        }
+
+        function handleCellClick(stateIndex) {
+            const state = gridStates[stateIndex];
+
+            if (state.type !== 'default') {
+                return;
+            }
+
+            if (!startSet) {
+                state.type = 'start';
+                startSet = true;
+            } else if (!endSet) {
+                state.type = 'end';
+                endSet = true;
+            } else {
+                const maxObstacles = currentSize - 2;
+                const currentObstacles = gridStates.filter(s => s.type === 'obstacle').length;
+
+                if (currentObstacles < maxObstacles) {
+                    state.type = 'obstacle';
+                }
+            }
+            renderGrids();
+        }
+
+        function runValueIteration() {
+            if (!endSet) {
+                alert("Please set the End (red) cell first!");
+                return;
+            }
+
+            hasEvaluated = true;
+            const gamma = 0.9; // Fixed discount factor
+            const stepReward = -1; // Fixed step penalty
+            const goalReward = 10; // Fixed goal reward
+
+            const actionVectors = [
+                { n: '↑', r: -1, c: 0 },
+                { n: '↓', r: 1, c: 0 },
+                { n: '←', r: 0, c: -1 },
+                { n: '→', r: 0, c: 1 }
+            ];
+
+            // 1. Initialize Values to 0
+            for (let i = 0; i < gridStates.length; i++) {
+                gridStates[i].value = 0;
+                gridStates[i].isPath = false;
+            }
+
+            // 2. Value Iteration (Bellman Optimality Equation)
+            let delta = 1;
+            const theta = 0.0001;
+            let iterations = 0;
+            const maxIterations = 1000;
+
+            while (delta >= theta && iterations < maxIterations) {
+                delta = 0;
+                const newValues = [];
+                const newPolicies = [];
+
+                for (let i = 0; i < gridStates.length; i++) {
+                    const s = gridStates[i];
+                    if (s.type === 'end' || s.type === 'obstacle') {
+                        newValues[i] = 0; // End is absorbing (0), obstacle is unreachable (0)
+                        newPolicies[i] = '';
+                        continue;
+                    }
+
+                    const r = Math.floor(i / currentSize);
+                    const c = i % currentSize;
+
+                    let maxExpectedReturn = -Infinity;
+                    let bestAction = '↑';
+
+                    // Evaluate all 4 actions
+                    for (let v = 0; v < actionVectors.length; v++) {
+                        const vec = actionVectors[v];
+                        const nextR = r + vec.r;
+                        const nextC = c + vec.c;
+
+                        let nextStateIndex = i;
+                        let reward = stepReward;
+
+                        if (nextR >= 0 && nextR < currentSize && nextC >= 0 && nextC < currentSize) {
+                            nextStateIndex = nextR * currentSize + nextC;
+                            const nextType = gridStates[nextStateIndex].type;
+                            if (nextType === 'obstacle') {
+                                nextStateIndex = i; // Hit obstacle => bounces back
+                            } else if (nextType === 'end') {
+                                reward = goalReward; // Goal reached
+                            }
+                        }
+
+                        const expectedReturn = reward + gamma * gridStates[nextStateIndex].value;
+
+                        if (expectedReturn > maxExpectedReturn) {
+                            maxExpectedReturn = expectedReturn;
+                            bestAction = vec.n;
+                        } else if (Math.abs(expectedReturn - maxExpectedReturn) < 1e-9) {
+                            // If tied, let's keep first found to be deterministic
+                        }
+                    }
+
+                    newValues[i] = maxExpectedReturn;
+                    newPolicies[i] = bestAction;
+
+                    delta = Math.max(delta, Math.abs(maxExpectedReturn - s.value));
+                }
+
+                for (let i = 0; i < gridStates.length; i++) {
+                    gridStates[i].value = newValues[i];
+                    gridStates[i].policy = newPolicies[i];
+                }
+                iterations++;
+            }
+            
+            // 3. Calculate Optimal Path
+            let startIndex = gridStates.findIndex(s => s.type === 'start');
+            if (startIndex !== -1 && endSet) {
+                let curr = startIndex;
+                let maxPathSteps = currentSize * currentSize;
+                let pathSteps = 0;
+                
+                while(curr >= 0 && curr < gridStates.length && gridStates[curr].type !== 'end' && pathSteps < maxPathSteps) {
+                    gridStates[curr].isPath = true;
+                    let p = gridStates[curr].policy;
+                    let r = Math.floor(curr / currentSize);
+                    let c = curr % currentSize;
+                    
+                    if (p === '↑') r--;
+                    else if (p === '↓') r++;
+                    else if (p === '←') c--;
+                    else if (p === '→') c++;
+                    else break;
+                    
+                    if (r < 0 || r >= currentSize || c < 0 || c >= currentSize) break;
+                    let next = r * currentSize + c;
+                    
+                    if (gridStates[next].type === 'obstacle') break;
+                    
+                    curr = next;
+                    pathSteps++;
+                }
+                if (curr >= 0 && curr < gridStates.length && gridStates[curr].type === 'end') {
+                    gridStates[curr].isPath = true;
+                }
+            }
+
+            renderGrids();
+        }
+    </script>
+</body>
+
+</html>
