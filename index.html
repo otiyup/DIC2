@@ -257,10 +257,6 @@
                         }
                     } else {
                         td.className = state.type;
-                        
-                        if (matrixType === 'policy' && state.isPath && state.type === 'default') {
-                            td.classList.add('path');
-                        }
 
                         if (matrixType === 'value') {
                             if (state.type === 'obstacle') {
