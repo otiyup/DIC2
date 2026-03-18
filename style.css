@@ -3,16 +3,11 @@
     --panel-bg: #1e293b;
     --text-color: #f8fafc;
     --text-muted: #94a3b8;
-    --grid-bg: #334155;
-    --cell-bg: #cbd5e1;
-    --cell-border: #94a3b8;
-    --start-bg: #22c55e;
-    --end-bg: #ef4444;
-    --block-bg: #475569;
-    --hover-bg: #e2e8f0;
-    --accent: #3b82f6;
-    --accent-hover: #2563eb;
-    --path-bg: #4ade80; /* Lighter green for path */
+    --grid-bg: #000000;
+    --cell-bg: #ffffff;
+    --cell-border: #000000;
+    --path-bg: #81c784; /* Matching green */
+    --block-bg: #757575;
 }
 
 body {
@@ -87,32 +82,7 @@ header p {
     color: var(--text-color);
 }
 
-.action-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    justify-content: center;
-}
 
-.primary-btn {
-    background-color: var(--accent);
-    color: white;
-    border: none;
-    padding: 0.75rem 1.5rem;
-    border-radius: 0.5rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color 0.2s, transform 0.1s;
-    font-size: 1rem;
-}
-
-.primary-btn:hover {
-    background-color: var(--accent-hover);
-}
-
-.primary-btn:active {
-    transform: scale(0.98);
-}
 
 .secondary-btn {
     background-color: transparent;
@@ -158,38 +128,28 @@ header p {
     display: grid;
     grid-template-columns: repeat(5, 70px);
     grid-template-rows: repeat(5, 70px);
-    gap: 4px;
+    gap: 2px;
     background-color: var(--grid-bg);
-    padding: 6px;
-    border-radius: 0.5rem;
+    padding: 2px; /* Outer border */
 }
 
 .cell {
     background-color: var(--cell-bg);
-    border-radius: 0.25rem;
     cursor: pointer;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-weight: 600;
-    color: #1e293b;
-    font-size: 1.5rem;
+    font-weight: bold;
+    color: #000000;
     position: relative;
-    transition: background-color 0.2s, transform 0.1s;
 }
 
 .cell:hover {
-    filter: brightness(0.9);
+    filter: brightness(0.95);
 }
 
-.cell.start {
-    background-color: var(--start-bg);
-    color: white;
-}
-
-.cell.end {
-    background-color: var(--end-bg);
-    color: white;
+.cell.path, .cell.start, .cell.end {
+    background-color: var(--path-bg);
 }
 
 .cell.block {
@@ -197,8 +157,13 @@ header p {
     cursor: not-allowed;
 }
 
-.cell.path {
-    background-color: var(--path-bg);
+.cell .cell-text {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    font-size: 0.65rem;
+    color: black;
+    font-weight: bold;
 }
 
 .cell .overlay {
@@ -208,26 +173,14 @@ header p {
     justify-content: center;
     align-items: center;
     pointer-events: none;
-    font-size: 2rem;
-    color: #0f172a;
+    font-size: 3rem; /* Giant arrows */
 }
 
-.cell.start .overlay, .cell.end .overlay {
-    display: flex; /* Need to override if we want to show arrows on start but maybe we dont */
+.overlay.path-arrow {
+    color: black;
+    font-weight: 900;
 }
 
-/* Allow values to be displayed safely */
-.cell .overlay.value-mode {
-    font-size: 1rem; /* Smaller font for numbers */
-}
-
-/* Start and goal text overlays */
-.cell.start {
-    color: white;
-    font-size: 1.2rem;
-}
-
-.cell.end {
-    color: white;
-    font-size: 1.2rem;
+.overlay.non-path-arrow {
+    color: #888888;
 }

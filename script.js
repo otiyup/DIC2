@@ -1,7 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
     const gridEl = document.getElementById("grid");
-    const runBtn = document.getElementById("run-btn");
-    const viewModeSelect = document.getElementById("view-mode");
     const resetBtn = document.getElementById("reset-btn");
     const instructionText = document.getElementById("instruction-text");
 
@@ -74,12 +72,17 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
         
-        // Reset computed when grid changes to prevent outdated display
+        // Reset computed policy unless we are fully ready
         currentValues = [];
         currentPolicy = [];
         
         updateGridUI();
-        renderOverlay();
+        
+        if (start && end) {
+            const result = runValueIterationLogic();
+            currentPolicy = result.policy;
+            renderPathAndArrows();
+        }
     }
     
     function resetGrid() {
@@ -91,7 +94,7 @@ document.addEventListener("DOMContentLoaded", () => {
         currentPolicy = [];
         instructionText.innerHTML = "Click a cell to set the <strong>Start</strong> point.";
         updateGridUI();
-        renderOverlay();
+        renderPathAndArrows();
     }
     
     if(resetBtn) resetBtn.addEventListener("click", resetGrid);
@@ -106,11 +109,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 
                 if (start && start[0] === r && start[1] === c) {
                     cell.classList.add("start");
-                    textContainer.textContent = "S";
+                    textContainer.textContent = "START";
                     cell.title = "Start Cell";
                 } else if (end && end[0] === r && end[1] === c) {
                     cell.classList.add("end");
-                    textContainer.textContent = "E";
+                    textContainer.textContent = "END";
                     cell.title = "Target Cell";
                 } else if (blocks.some(b => b[0] === r && b[1] === c)) {
                     cell.classList.add("block");
@@ -183,151 +186,87 @@ document.addEventListener("DOMContentLoaded", () => {
         return { values: V, policy: policy };
     }
 
-    function runValueIteration() {
-        runBtn.disabled = true;
-        runBtn.textContent = "Computing...";
-        
-        // Use setTimeout to allow UI to update to "Computing..."
-        setTimeout(() => {
-            try {
-                if (!start || !end) {
-                    alert("Please set a Start point and an End point first.");
-                    return;
+    function renderPathAndArrows() {
+        // Clear all previous overlays and paths
+        for (let r = 0; r < SIZE; r++) {
+            for (let c = 0; c < SIZE; c++) {
+                const cell = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+                if (cell) {
+                    cell.classList.remove('path');
+                    const overlay = cell.querySelector('.overlay');
+                    if (overlay) {
+                        overlay.textContent = '';
+                        overlay.className = "overlay";
+                    }
                 }
-                const result = runValueIterationLogic();
-                currentValues = result.values;
-                currentPolicy = result.policy;
-                
-                // Auto switch to optimal policy view if it was on random
-                if (viewModeSelect.value === "random") {
-                    viewModeSelect.value = "optimal";
-                }
-                
-                renderOverlay();
-                renderPath();
-            } catch (err) {
-                console.error(err);
-                alert("Error running Value Iteration: " + err.message);
-            } finally {
-                runBtn.disabled = false;
-                runBtn.textContent = "Compute Value Iteration";
             }
-        }, 10);
-    }
-
-    function renderPath() {
-        // Only render path if we have a policy and start/end are set and view is optimal
-        if (currentPolicy.length === 0 || !start || !end || viewModeSelect.value !== "optimal") return;
+        }
+    
+        if (currentPolicy.length === 0 || !start || !end) return;
         
+        // 1. Trace the path
         let path = [];
         let currR = start[0];
         let currC = start[1];
         let steps = 0;
-        const maxSteps = SIZE * SIZE; // prevent infinite loops in bad layouts
+        const maxSteps = SIZE * SIZE;
+        
+        path.push([currR, currC]); // include start in path highlighting
         
         while ((currR !== end[0] || currC !== end[1]) && steps < maxSteps) {
-            path.push([currR, currC]);
             const action = currentPolicy[currR][currC];
-            if (action === -1) break; // no path
+            if (action === -1) break;
             
             const nextState = getTransition(currR, currC, action);
-            if (nextState[0] === currR && nextState[1] === currC) break; // bumped into wall
+            if (nextState[0] === currR && nextState[1] === currC) break;
             
             currR = nextState[0];
             currC = nextState[1];
             steps++;
             
+            path.push([currR, currC]);
+            
             if (currR === end[0] && currC === end[1]) {
-                path.push([currR, currC]);
                 break;
             }
         }
         
-        // Apply path styling to elements
-        if (steps < maxSteps && path.length > 0 && path[path.length -1][0] === end[0] && path[path.length-1][1] === end[1]) {
-             path.forEach(([pr, pc]) => {
-                const cell = document.querySelector(`.cell[data-r="${pr}"][data-c="${pc}"]`);
-                if(cell) cell.classList.add('path');
-             });
-        }
-    }
-
-    function renderOverlay() {
-        const viewMode = viewModeSelect.value;
-        
+        // 2. Render arrows and path backgrounds
         for (let r = 0; r < SIZE; r++) {
             for (let c = 0; c < SIZE; c++) {
                 const cell = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
                 const overlay = cell.querySelector('.overlay');
-                const textContainer = cell.querySelector('.cell-text');
                 
-                overlay.textContent = '';
-                overlay.className = "overlay"; // reset
-                
-                const isGoal = (end && r === end[0] && c === end[1]);
+                const isGoal = (r === end[0] && c === end[1]);
                 const isBlock = blocks.some(b => b[0] === r && b[1] === c);
-                const isStart = (start && r === start[0] && c === start[1]);
-                
-                if (isGoal) {
-                    if (viewMode === "values" && currentValues.length) {
-                        textContainer.textContent = "";
-                        overlay.textContent = currentValues[r][c].toFixed(1);
-                        overlay.classList.add("value-mode");
-                        overlay.style.color = "white";
-                    } else if (viewMode === "optimal") {
-                        textContainer.textContent = "E";
-                        overlay.textContent = "🎯";
-                        overlay.style.fontSize = "1rem";
-                        overlay.style.transform = "translateY(15px)"; // Push it lower
-                    } else {
-                        textContainer.textContent = "E";
-                    }
-                    continue;
-                }
+                const isPath = path.some(p => p[0] === r && p[1] === c);
                 
                 if (isBlock) continue;
                 
-                // Set default text for Start unless overwritten
-                if (isStart && viewMode !== "values") {
-                     textContainer.textContent = "S";
-                } else if (isStart && viewMode === "values" && currentValues.length) {
-                     textContainer.textContent = "";
-                } else if (!isStart && !isGoal) {
-                     textContainer.textContent = "";
+                // Highlight valid path reaching goal
+                if (isPath && steps < maxSteps && path[path.length - 1][0] === end[0] && path[path.length - 1][1] === end[1]) {
+                    cell.classList.add('path');
                 }
                 
-                if (viewMode === "random") {
-                    const randomAction = Math.floor(Math.random() * 4);
-                    overlay.textContent = arrowMap[randomAction];
-                    if (isStart) {
-                        overlay.style.color = "white";
-                        overlay.style.fontSize = "1.5rem";
-                    }
-                } else if (viewMode === "values") {
-                    overlay.classList.add("value-mode");
-                    if (currentValues.length > 0) {
-                        overlay.textContent = currentValues[r][c].toFixed(1);
-                        if(isStart) overlay.style.color = "white";
-                    }
-                } else if (viewMode === "optimal") {
-                    if (currentPolicy.length > 0) {
-                        const action = currentPolicy[r][c];
-                        if (action !== -1) {
-                            overlay.textContent = arrowMap[action];
-                            if(isStart) overlay.style.color = "white";
-                        }
+                if (isGoal) {
+                    continue; // End cell has text 'END' but no directional arrow
+                }
+                
+                // Draw optimal policy arrow on all non-block cells
+                const action = currentPolicy[r][c];
+                if (action !== -1) {
+                    overlay.textContent = arrowMap[action];
+                    if (isPath && steps < maxSteps && path[path.length - 1][0] === end[0] && path[path.length - 1][1] === end[1]) {
+                        overlay.classList.add("path-arrow");
+                    } else {
+                        overlay.classList.add("non-path-arrow");
                     }
                 }
             }
         }
     }
 
-    runBtn.addEventListener("click", runValueIteration);
-    viewModeSelect.addEventListener("change", () => {
-        updateGridUI(); // reset any path classes
-        renderOverlay();
-        renderPath();
-    });
+
 
     initGrid();
 });
